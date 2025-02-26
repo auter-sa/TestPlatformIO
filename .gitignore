@@ -1,4 +1,7 @@
-./.pio/*
+# Ignore PlatformIO build output
+.pio/
+.pio/*
+!.pio/.gitkeep
 
 # Prerequisites
 *.d
