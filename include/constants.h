@@ -9,7 +9,7 @@
 #define HEX_FILENAME          "/RIESCO_JP.hex"
 #define MAX_BYTES             512
 #define MAX_FIXED_HOLIDAYS     13
-#define MAX_STATIONS            4
+#define MAX_SEASONS             4
 #define MAX_VARIABLE_HOLIDAYS  18
 #define MAX_SCHEDULE_ENTRIES   18
 #define MAX_HOLY_WEEK           8

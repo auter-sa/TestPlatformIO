@@ -56,15 +56,15 @@ ScheduleEntry::ScheduleEntry() {
     this->days     = 0;
     this->action   = ' ';
     this->argument = 0;
-    this->stations = 0;
+    this->seasons  = 0;
 }
 
 ScheduleEntry::ScheduleEntry(String hour, int days, char action) {
     this->setAll(hour, days, action);
 }
 
-ScheduleEntry::ScheduleEntry(String hour, int days, char action, int argument, int stations) {
-    this->setAll(hour, days, action, argument, stations);
+ScheduleEntry::ScheduleEntry(String hour, int days, char action, int argument, int seasons) {
+    this->setAll(hour, days, action, argument, seasons);
 }
 
 ScheduleEntry::~ScheduleEntry() {
@@ -75,15 +75,15 @@ void ScheduleEntry::setAll(String hour, int days, char action) {
     this->days     = days;
     this->action   = action;
     this->argument = 0;
-    this->stations = 0;
+    this->seasons  = 0;
 }
 
-void ScheduleEntry::setAll(String hour, int days, char action, int argument, int stations) {
+void ScheduleEntry::setAll(String hour, int days, char action, int argument, int seasons) {
     this->hour     = hour;
     this->days     = days;
     this->action   = action;
     this->argument = argument;
-    this->stations = stations;
+    this->seasons  = seasons;
 }
 
 String ScheduleEntry::getHour() const {
@@ -102,8 +102,8 @@ int ScheduleEntry::getArgument() const {
     return this->argument;
 }
 
-int ScheduleEntry::getStations() const {
-    return this->stations;
+int ScheduleEntry::getSeasons() const {
+    return this->seasons;
 }
 
 String ScheduleEntry::bitsToString(int numValue, String strValues) {
@@ -121,20 +121,52 @@ String ScheduleEntry::bitsToString(int numValue, String strValues) {
 String ScheduleEntry::get() {
     char buffer[80];
     sprintf(buffer, "%s - Dias: %s - Acc: %c - Arg: %s - Est: %s",
-            this->hour, bitsToString(this->days, "LMWJVSDF"), this->action, bitsToString(this->argument, "12345678"),  bitsToString(this->stations, "12345678"));
+            this->hour, bitsToString(this->days, "LMWJVSDF"), this->action, bitsToString(this->argument, "12345678"),  bitsToString(this->seasons, "12345678"));
     return ((String) buffer);
 }
 
 //-----------------------------------------------------------------------------
 
-Schedule::Schedule(JsonArray items) {
-    this->entries.clear();
-    for (JsonObject item : items) {
-        ScheduleEntry *entry;
-        entry->setAll(item["time"].as<String>(), item["days"].as<int>(), item["action"].as<int>());
-        this->entries.push_back(entry);
-    }
+ScheduleSeason::ScheduleSeason() {
+    this->day    = 0;
+    this->month  = 0;
+    this->season = 0;
 }
+
+ScheduleSeason::ScheduleSeason(int day, int month, int season) {
+    this->day    = day;
+    this->month  = month;
+    this->season = season;
+}
+
+ScheduleSeason::~ScheduleSeason() {
+}
+
+void ScheduleSeason::setDay(int day) {
+    this->day = day;
+}
+
+void ScheduleSeason::setMonth(int month) {
+    this->month = month;
+}
+
+void ScheduleSeason::setSeason(int year) {
+    this->season = season;
+}
+
+int ScheduleSeason::getDay() {
+    return this->day;
+}
+
+int ScheduleSeason::getMonth() {
+    return this->month;
+}
+
+int ScheduleSeason::getSeason() {
+    return this->season;
+}
+
+//-----------------------------------------------------------------------------
 
 Schedule::Schedule(byte *hexFile) {
     int  i, index;
@@ -152,12 +184,32 @@ Schedule::Schedule(byte *hexFile) {
 		}
 	}
 
-    // Skip stations. Check if it's an old .hex format to fine tune index accordingly
-    index    += (MAX_STATIONS - 1) * 3;
-    oldFormat = ((hexFile[index] != (byte) 0x00) && (hexFile[index + 1] != (byte) 0x00) && (hexFile[index] > (byte) 0x08));
-    if (! oldFormat) {
-        index += 3;
+    // Seasons
+    for (i = 0; i < MAX_SEASONS; i ++) {
+		b1 = hexFile[index ++];
+		b2 = hexFile[index ++];
+		b3 = hexFile[index ++];
+		if ((b1 != (byte) 0x00) && (b2 != (byte) 0x00) && (b3 != (byte) 0x00)) {
+            if (i < MAX_SEASONS - 1) {
+                ScheduleSeason *season = new ScheduleSeason(b1, b2, b3);
+                this->seasons.push_back(season);
+            } else {
+                if (b3 > (byte) 0x08) {
+                    oldFormat = true;
+                    index -= 3;
+                } else {
+                    ScheduleSeason *season = new ScheduleSeason(b1, b2, b3);
+                    this->seasons.push_back(season);
+                }
+            }
+        }
     }
+
+    //index    += (MAX_SEASONS - 1) * 3;
+    //oldFormat = ((hexFile[index] != (byte) 0x00) && (hexFile[index + 1] != (byte) 0x00) && (hexFile[index] > (byte) 0x08));
+    //if (! oldFormat) {
+    //    index += 3;
+    //}
 
 	for (i = 0; i < MAX_VARIABLE_HOLIDAYS - (oldFormat ? 2 : 0); i ++) {
 		b1 = hexFile[index ++];
@@ -197,7 +249,6 @@ Schedule::Schedule(byte *hexFile) {
             this->holidays.push_back(holiday);
 		}
 	}
-
 }
 
 Schedule::~Schedule() {
@@ -214,6 +265,13 @@ Schedule::~Schedule() {
         }
     }
     this->holidays.clear();
+
+    for (ScheduleSeason *season : this->seasons) {
+        if (season != NULL) {
+            delete season;
+        }
+    }
+    this->seasons.clear();
 }
 
 String Schedule::hourString(int hour, int minute) {
@@ -230,13 +288,21 @@ String Schedule::hourString(int hour, int minute, int second) {
 
 void Schedule::display() {
     Serial.println();
-    Serial.println("[0] Tabla horaria y feriados");
+    Serial.println("[0] Contenidos de archivo HEX");
     Serial.println();
     Serial.println("Feriados:");
     if (this->holidays.size() > 0) {
         Serial.println();
         for (ScheduleHoliday *holiday : this->holidays) {
             Serial.printf("    %02d-%02d-%04d\r\n", holiday->getDay(), holiday->getMonth(), holiday->getYear());
+        }
+    }
+    Serial.println();
+    Serial.println("Estaciones:");
+    if (this->seasons.size() > 0) {
+        Serial.println();
+        for (ScheduleSeason *season : this->seasons) {
+            Serial.printf("    %02d-%02d - %d\r\n", season->getDay(), season->getMonth(), season->getSeason());
         }
     }
     Serial.println();
@@ -263,6 +329,20 @@ bool Schedule::isHoliday(struct tm *timeInfo) {
     return false;
 }
 
+int Schedule::currentSeason(struct tm *timeInfo) {
+    int currSeason = 0;
+    int day        = timeInfo->tm_mday;
+    int month      = timeInfo->tm_mon + 1;
+
+    for (ScheduleSeason *season : this->seasons) {
+        if ((month > season->getMonth()) || ((month + 1 == season->getMonth()) && (day >= season->getDay()))) {
+            currSeason = season->getSeason();
+        }
+    }
+    return currSeason;
+}
+
+
 bool Schedule::compareEntry(const ScheduleEntry *entry1, const ScheduleEntry *entry2) {
     if (! entry1->getHour().equals(entry2->getHour())) {
         return entry1->getHour() < entry2->getHour();
@@ -277,6 +357,7 @@ void Schedule::initActions(time_t unixTime) {
     struct tm *timeInfo = localtime(&unixTime);
     char       hour[10], lastHour[10] = "00:00";
     int        dow      = timeInfo->tm_wday - 1;
+    int        season   = currentSeason(timeInfo);
 
     sprintf(hour, "%02d:%02d", timeInfo->tm_hour, timeInfo->tm_min);
     if (dow < 0) {
@@ -287,15 +368,15 @@ void Schedule::initActions(time_t unixTime) {
     // Check previous hour while triggering all actions to get an initial value;
     for (ScheduleEntry *entry : this->entries) {
         triggerAction(entry);
-        Serial.println(">>> [Ini] " + entry->get());
+        Serial.println(">>> [Ini] <" + String(season) + "> " + entry->get());
         if (entry->getHour() <= hour) {
             strcpy(lastHour, entry->getHour().c_str());
         }
     }
     for (ScheduleEntry *entry : this->entries) {
-        if (((entry->getDays() & dow) > 0) && (entry->getHour() <= lastHour)) {
+        if (((entry->getDays() & dow) > 0) && (entry->getHour() <= lastHour) && (((1 << (season - 1)) & entry->getSeasons()) > 0)) {
             triggerAction(entry);
-            Serial.println(">>> [Ini] " + entry->get());
+            Serial.println(">>> [Ini] <" + String(season) + "> " + entry->get());
         }
     }
 }
@@ -304,6 +385,7 @@ void Schedule::triggerActions(time_t unixTime) {
     struct tm *timeInfo = localtime(&unixTime);
     char       hour[10];
     int        dow      = timeInfo->tm_wday - 1;
+    int        season   = currentSeason(timeInfo);
 
     if (timeInfo->tm_sec == 0) {
         sprintf(hour, "%02d:%02d", timeInfo->tm_hour, timeInfo->tm_min);
@@ -313,9 +395,9 @@ void Schedule::triggerActions(time_t unixTime) {
         dow = (1 << dow) | (isHoliday(timeInfo) ? 128 : 0);
 
         for (ScheduleEntry *entry : this->entries) {
-            if (((entry->getDays() & dow) > 0) && (entry->getHour().equals(hour))) {
+            if (((entry->getDays() & dow) > 0) && (entry->getHour().equals(hour)) && (((1 << (season - 1)) & entry->getSeasons()) > 0)) {
                 triggerAction(entry);
-                Serial.println(">>> " + entry->get());
+                Serial.println(">>> <" + String(season) + "> " + entry->get());
             }
         }
     }

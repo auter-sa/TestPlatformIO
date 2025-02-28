@@ -33,42 +33,62 @@ class ScheduleEntry {
         int    days;
         char   action;
         int    argument;
-        int    stations;
+        int    seasons;
 
         String bitsToString(int numValue, String strValues);
 
     public:
         ScheduleEntry();
         ScheduleEntry(String hour, int days, char action);
-        ScheduleEntry(String hour, int days, char action, int argument, int stations);
+        ScheduleEntry(String hour, int days, char action, int argument, int seasons);
         ~ScheduleEntry();
 
         void   setAll(String hour, int days, char action);
-        void   setAll(String hour, int days, char action, int argument, int stations);
+        void   setAll(String hour, int days, char action, int argument, int seasons);
         String getHour() const;
         int    getDays() const;
         char   getAction() const;
         int    getArgument() const;
-        int    getStations() const;
+        int    getSeasons() const;
 
         String get();
+};
+
+class ScheduleSeason {
+    private:
+        int day;
+        int month;
+        int season;
+
+    public:
+        ScheduleSeason();
+        ScheduleSeason(int day, int month, int season);
+        ~ScheduleSeason();
+
+        void setDay(int day);
+        void setMonth(int month);
+        void setSeason(int year);
+        int  getDay();
+        int  getMonth();
+        int  getSeason();
 };
 
 class Schedule {
     private:
         std::vector<ScheduleHoliday *> holidays;
         std::vector<ScheduleEntry *> entries;
+        std::vector<ScheduleSeason *> seasons;
 
         String hourString(int hour, int minute);
         String hourString(int hour, int minute, int second);
         bool   compareEntry(const ScheduleEntry *entry1, const ScheduleEntry *entry2);
 
     public:
-        Schedule(JsonArray items);
         Schedule(byte *hexFile);
         ~Schedule();
 
         bool isHoliday(struct tm *timeInfo);
+        int  currentSeason(struct tm *timeInfo);
         void display();
         void initActions(time_t unixTime);
         void triggerActions(time_t unixTime);
