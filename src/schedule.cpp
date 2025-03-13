@@ -335,7 +335,7 @@ int Schedule::currentSeason(struct tm *timeInfo) {
     int month      = timeInfo->tm_mon + 1;
 
     for (ScheduleSeason *season : this->seasons) {
-        if ((month > season->getMonth()) || ((month + 1 == season->getMonth()) && (day >= season->getDay()))) {
+        if ((month > season->getMonth()) || ((month == season->getMonth()) && (day >= season->getDay()))) {
             currSeason = season->getSeason();
         }
     }
